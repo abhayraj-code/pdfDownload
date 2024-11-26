@@ -1,40 +1,30 @@
 var express = require("express"),
   app = express();
 
-const html_to_pdf = require("html-pdf-node");
+const chromium = require("@sparticuz/chrome-aws-lambda");
+const puppeteer = require("puppeteer");
 
 app.get("/generate-pdf", async (req, res) => {
   try {
-    // Define static HTML content
-    const htmlContent = `
-      <html>
-        <body>
-          <h1>Welcome to html-pdf-node</h1>
-          <p>This is a static PDF generated using predefined content.</p>
-        </body>
-      </html>
-    `;
+    console.log("Chromium Path:", await chromium.executablePath);
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
+    });
 
-    // Define PDF options
-    const options = { format: "A4" };
+    const page = await browser.newPage();
+    await page.setContent("<h1>Test PDF</h1>");
 
-    // Create a file object with the static HTML content
-    const file = { content: htmlContent };
+    const pdf = await page.pdf({ format: "A4" });
 
-    // Generate the PDF buffer
-    const pdfBuffer = await html_to_pdf.generatePdf(file, options);
+    await browser.close();
 
-    // Set response headers for downloading the PDF
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=static-content.pdf"
-    );
-
-    // Send the PDF buffer as the response
-    res.send(pdfBuffer);
+    res.setHeader("Content-Disposition", "attachment; filename=test.pdf");
+    res.send(pdf);
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    console.error("Error:", error);
     res.status(500).send("Failed to generate PDF");
   }
 });
