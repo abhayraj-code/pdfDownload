@@ -1,17 +1,46 @@
-const express = require('express');
-const expressLayouts = require('express-ejs-layouts');
-const path = require('path');
-const homeRoutes = require('./routes/home-routes');
+var express = require("express"),
+  app = express();
 
-const app = express();
+const html_to_pdf = require("html-pdf-node");
 
+app.get("/generate-pdf", async (req, res) => {
+  try {
+    // Define static HTML content
+    const htmlContent = `
+      <html>
+        <body>
+          <h1>Welcome to html-pdf-node</h1>
+          <p>This is a static PDF generated using predefined content.</p>
+        </body>
+      </html>
+    `;
 
-app.use(expressLayouts);
-app.set('view engine', 'ejs');
+    // Define PDF options
+    const options = { format: "A4" };
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/docs', express.static(path.join(__dirname, 'docs')));
-app.use(homeRoutes.routes);
+    // Create a file object with the static HTML content
+    const file = { content: htmlContent };
 
+    // Generate the PDF buffer
+    const pdfBuffer = await html_to_pdf.generatePdf(file, options);
 
-app.listen(3000, () => console.log('App is listening on url http://localhost:3000'));
+    // Set response headers for downloading the PDF
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=static-content.pdf"
+    );
+
+    // Send the PDF buffer as the response
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    res.status(500).send("Failed to generate PDF");
+  }
+});
+
+const port = process.env.PORT || 3000;
+
+app.listen(port, () => {
+  console.log(` runn at http://localhost:${port}`);
+});
