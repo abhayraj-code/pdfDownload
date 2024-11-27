@@ -36,9 +36,9 @@
 // });
 
 const express = require("express");
-const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
+const pdf = require("html-pdf");
 
 const app = express();
 const PORT = 3000;
@@ -69,7 +69,7 @@ const generateHTML = (trackingNumber) => `
 `;
 
 // API to create or fetch PDF
-app.get("/generate-pdf", async (req, res) => {
+app.get("/generate-pdf", (req, res) => {
   const { trackingNumber } = req.query;
 
   if (!trackingNumber) {
@@ -89,25 +89,23 @@ app.get("/generate-pdf", async (req, res) => {
   }
 
   try {
-    // Generate PDF using Puppeteer
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-
-    // Load the HTML content
+    // Generate HTML content
     const htmlContent = generateHTML(trackingNumber);
-    await page.setContent(htmlContent, { waitUntil: "load" });
 
-    // Save the PDF to the server
-    await page.pdf({ path: pdfPath, format: "A4" });
-
-    await browser.close();
-
-    // Send the generated PDF for download
-    return res.download(pdfPath, `${trackingNumber}.pdf`, (err) => {
+    // Generate PDF from HTML content using html-pdf
+    pdf.create(htmlContent).toFile(pdfPath, (err, response) => {
       if (err) {
-        console.error("Error sending file:", err);
-        res.status(500).send("Error sending file.");
+        console.error("Error generating PDF:", err);
+        return res.status(500).json({ message: "Error generating PDF." });
       }
+
+      // Send the generated PDF for download
+      return res.download(pdfPath, `${trackingNumber}.pdf`, (err) => {
+        if (err) {
+          console.error("Error sending file:", err);
+          res.status(500).send("Error sending file.");
+        }
+      });
     });
   } catch (error) {
     console.error("Error generating PDF:", error);
